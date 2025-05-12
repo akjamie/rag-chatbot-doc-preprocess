@@ -1,7 +1,7 @@
 import json
 import os
-from typing import List
 from datetime import datetime, timezone
+from typing import List
 
 from langchain_core.document_loaders import BaseLoader
 from langchain_core.documents import Document
@@ -58,6 +58,9 @@ class JsonDocLoader(DocumentLoader):
 
     def get_splitter(self):
         return RecursiveJsonSplitter(max_chunk_size=self.get_trunk_size(),min_chunk_size=self.get_overlap())
+    
+    def get_splitter_for_child(self):
+        return RecursiveJsonSplitter(max_chunk_size=self.get_trunk_size() / 4,min_chunk_size=self.get_overlap() / 4)
 
     def is_supported_file_extension(self, file_path: str) -> bool:
         if None != file_path and file_path.lower().endswith(".json"):
