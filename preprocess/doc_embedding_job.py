@@ -78,7 +78,7 @@ class DocEmbeddingJob:
         self.scheduler.add_job(
             self.scan_input_directory,
             'interval',
-            minutes=1,
+            minutes=5,
             id='scan_input_directory',
             max_instances=1,  # Explicitly set max instances
             coalesce=True  # Combine missed runs into a single run
@@ -87,7 +87,7 @@ class DocEmbeddingJob:
         self.scheduler.add_job(
             self.reset_stalled_documents,
             'interval',
-            minutes=3,
+            minutes=10,
             id='reset_stalled_documents',
             max_instances=1,
             coalesce=True
@@ -142,12 +142,12 @@ class DocEmbeddingJob:
                     self.index_log_helper.save(log)
                     self.logger.info(f"Document processed: {log.source_type}:{log.source}")
                 except Exception as e:
+                    self.logger.error(f"Error processing document: {log.source} - {str(e)}, stack: {traceback.format_exc()}")
                     log.status = Status.FAILED
                     log.retry_count = (log.retry_count or 0) + 1
                     log.error_message = str(e)
                     log.modified_at = datetime.now(UTC)
                     self.index_log_helper.save(log)
-                    self.logger.error(f"Error processing document: {log.source} - {str(e)}")
         finally:
             self.distributed_lock_helper.release_lock("process_pending_documents")
         self.logger.info("Finished processing pending documents")
@@ -162,7 +162,7 @@ class DocEmbeddingJob:
         try:
             input_path = self.config.get_embedding_config()["input_path"]
             if not os.path.exists(input_path):
-                self.logger.info(f"Archive directory does not exist: {input_path}")
+                self.logger.info(f"Input directory does not exist: {input_path}")
                 return
 
             for file_name in os.listdir(input_path):
@@ -185,7 +185,7 @@ class DocEmbeddingJob:
 
                     # Check if already processed
                     existing_log = self.index_log_helper.find_by_checksum(checksum)
-                    if existing_log:
+                    if existing_log is not None:
                         # Get archive path
                         archive_path = self.config.get_embedding_config()["archive_path"]
                         staging_path = self.config.get_embedding_config()["staging_path"]
@@ -214,14 +214,19 @@ class DocEmbeddingJob:
                             self.logger.info(
                                 f"Updated source information for existing document: {file_name}, index_log_id: {existing_log.id}")
                             continue
+                    else:
+                        staging_path = self.config.get_embedding_config()["staging_path"]
+                        os.makedirs(staging_path, exist_ok=True)
+                        stating_file_path = os.path.join(staging_path, file_name)
+                        shutil.move(file_path, stating_file_path)
 
-                    # Create new index log
-                    self.add_index_log(
-                        source=file_path,
-                        source_type=source_type,
-                        user_id="system"  # System user for automated processing
-                    )
-                    self.logger.info(f"Added new document for processing: {file_name}")
+                        # Create new index log
+                        self.add_index_log(
+                            source=stating_file_path,
+                            source_type=source_type,
+                            user_id="system"  # System user for automated processing
+                        )
+                        self.logger.info(f"Added new document for processing: {file_name}")
 
                 except Exception as e:
                     self.logger.error(f"Error processing input file {file_name}: {str(e)}")
@@ -315,7 +320,7 @@ class DocEmbeddingJob:
                 self.vector_store.add_documents(batch)
             self.logger.info(f"Successfully added all {len(documents)} documents in {total_batches} batches")
         except Exception as e:
-            self.logger.error(f"Error adding documents in batches: {str(e)}")
+            self.logger.error(f"Error adding documents in batches: {str(e)}, stack: {traceback.format_exc()}")
             raise
 
     def _process_document(self, log):
@@ -324,6 +329,7 @@ class DocEmbeddingJob:
             self.logger.info(f"Processing document: {log.source_type}:{log.source}")
             # Get appropriate loader
             loader = DocumentLoaderFactory.get_loader(log.source_type)
+            splitter = DocumentLoaderFactory.get_spliter(log.source_type)
 
             # Load document
             documents = loader.load(log.source)
@@ -346,14 +352,30 @@ class DocEmbeddingJob:
                 source_file = Path(log.source)
                 archive_file = str(Path(archive_path) / source_file.name).replace('\\', '/')
 
-            # Add metadata
+            # Add metadata, and filter out the empty page_content
+            documents = [doc for doc in documents if doc.page_content]
             for doc in documents:
                 doc.metadata.update({
                     "source": archive_file if archive_file is not None else log.source,
                     "source_type": log.source_type,
+                    "log_index_id": log.id,
                     "checksum": log.checksum,
-                    "trunk_id": get_id()
+                    "trunk_id": get_id(),
+                    "chunk_type": "parent"
                 })
+
+            # split documents into chunks and setup parent-child relationship, document snnipets does not require such child trunks
+            for doc in documents:
+                child_docs = splitter.split_documents([doc])
+                for child_doc in child_docs:
+                    # copy metadata from parent to child
+                    child_doc.metadata.update(doc.metadata)
+                    child_doc.metadata['parent_id'] = doc.metadata['trunk_id']
+                    child_doc.metadata['trunk_id'] = get_id()
+                    child_doc.metadata['chunk_type'] = 'child'
+
+                # add child docs to documents
+                documents.extend(child_docs)
 
             # Save to vector store in batches
             self.add_documents_in_batches(documents)

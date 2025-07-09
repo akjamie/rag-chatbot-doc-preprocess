@@ -1,4 +1,3 @@
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import TextLoader
 from langchain_core.document_loaders import BaseLoader
 
@@ -6,8 +5,6 @@ from preprocess.loader.base_loader import DocumentLoader
 
 
 class TextDocLoader(DocumentLoader):
-    def get_splitter(self):
-        return RecursiveCharacterTextSplitter(chunk_size=self.get_trunk_size(), chunk_overlap=self.get_overlap())
 
     def get_loader(self, file_path: str) -> BaseLoader:
         if self.is_supported_file_extension(file_path):

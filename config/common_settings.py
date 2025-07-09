@@ -143,6 +143,11 @@ class CommonConfig:
         staging_path = os.getenv("DOC_STAGING_PATH", self.config["app"]["embedding"].get("staging_path"))
         archive_path = os.getenv("DOC_ARCHIVE_PATH", self.config["app"]["embedding"].get("archive_path"))
 
+        # create path if they don't exist
+        self._create_directory(input_path)
+        self._create_directory(staging_path)
+        self._create_directory(archive_path)
+
         embedding_config = {
             "input_path": input_path,
             "staging_path": staging_path,
@@ -176,6 +181,15 @@ class CommonConfig:
             return value
         except (KeyError, TypeError):
             return default_value
+
+    def _create_directory(self, path):
+        """Create directory if it doesn't exist"""
+        if path.startswith("./") or path.startswith(".\\"):
+            return
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+            self.logger.info(f"Created directory: {path}")
 
     @lru_cache(maxsize=1)
     def get_vector_store(self) -> VectorStore:
