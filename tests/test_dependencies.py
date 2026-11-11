@@ -22,3 +22,4 @@ def test_requirements_langchain_modern_versions():
     assert deps.get("langchain-huggingface") == "==1.2.3", f"Expected langchain-huggingface==1.2.3, got {deps.get('langchain-huggingface')}"
     assert "pymupdf" in deps, "pymupdf dependency missing"
     assert "neo4j" in deps, "neo4j dependency missing"
+

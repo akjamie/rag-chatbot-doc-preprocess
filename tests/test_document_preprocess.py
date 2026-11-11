@@ -35,3 +35,4 @@ def test_embeddings_generation_runnable():
     assert len(embeddings) == 1
     assert len(embeddings[0]) == 4
     assert isinstance(embeddings[0][0], float)
+
