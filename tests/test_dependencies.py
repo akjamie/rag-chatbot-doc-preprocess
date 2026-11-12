@@ -2,8 +2,13 @@ import re
 from pathlib import Path
 
 
+def _parse_version_tuple(version_str: str):
+    nums = re.findall(r"\d+", version_str)
+    return tuple(int(n) for n in nums)
+
+
 def test_requirements_langchain_modern_versions():
-    """Verify requirements.txt specifies LangChain 1.4.9, langchain-core 1.7.6, and modern libraries."""
+    """Verify requirements.txt specifies LangChain 1.4.9, langchain-core 1.7.6, and all modern partner libraries."""
     req_path = Path(__file__).parent.parent / "requirements.txt"
     assert req_path.exists(), "requirements.txt not found"
 
@@ -16,10 +21,28 @@ def test_requirements_langchain_modern_versions():
         if match:
             deps[match.group(1).lower()] = match.group(2).strip()
 
-    assert deps.get("langchain") == "==1.4.9", f"Expected langchain==1.4.9, got {deps.get('langchain')}"
-    assert deps.get("langchain-core") == "==1.7.6", f"Expected langchain-core==1.7.6, got {deps.get('langchain-core')}"
-    assert deps.get("langchain-community") == "==0.4.2", f"Expected langchain-community==0.4.2, got {deps.get('langchain-community')}"
-    assert deps.get("langchain-huggingface") == "==1.2.3", f"Expected langchain-huggingface==1.2.3, got {deps.get('langchain-huggingface')}"
-    assert "pymupdf" in deps, "pymupdf dependency missing"
-    assert "neo4j" in deps, "neo4j dependency missing"
+    expected_exact = {
+        "langchain": "==1.4.9",
+        "langchain-core": "==1.7.6",
+        "langchain-community": "==0.4.2",
+        "langgraph": "==1.2.20",
+        "langchain-huggingface": "==1.2.3",
+        "langchain-qdrant": "==1.1.0",
+        "langchain-google-genai": "==4.4.3",
+        "langchain-ollama": "==1.1.0",
+        "langchain-anthropic": "==1.7.6",
+        "langchain-postgres": "==0.0.12",
+        "langchain-redis": "==0.1.1",
+    }
+    for pkg, expected_ver in expected_exact.items():
+        assert deps.get(pkg) == expected_ver, f"Expected {pkg}{expected_ver}, got {deps.get(pkg)}"
 
+    expected_min = {
+        "pymupdf": (1, 25, 0),
+        "neo4j": (5, 26, 0),
+        "spacy": (3, 8, 4),
+    }
+    for pkg, min_ver in expected_min.items():
+        assert pkg in deps, f"{pkg} dependency missing"
+        actual_ver = _parse_version_tuple(deps[pkg])
+        assert actual_ver >= min_ver, f"Expected {pkg} >= {min_ver}, got {deps[pkg]}"

@@ -14,7 +14,7 @@ The document preprocessing service dependencies in `requirements.txt` SHALL spec
 - **THEN** `langchain` 1.4.9, `langchain-core` 1.7.6, `pymupdf>=1.25.0`, and `neo4j>=5.26.0` install without resolution conflicts.
 
 **Acceptance criteria**
-- [ ] AC1: `requirements.txt` locks compatible LangChain 1.4.9 and ingestion dependencies (test: tests/test_dependencies.py)
+- [x] AC1: `requirements.txt` locks compatible LangChain 1.4.9 and ingestion dependencies (test: tests/test_dependencies.py)
 
 ### Requirement: Document Parsing and Embedding Generation
 The preprocessing pipeline MUST successfully parse PDF documents and produce embeddings using modern LangChain embeddings models.
@@ -25,7 +25,7 @@ The preprocessing pipeline MUST successfully parse PDF documents and produce emb
 - **THEN** document chunks and embeddings are generated and stored without runtime exceptions.
 
 **Acceptance criteria**
-- [ ] AC2: Document parser and embeddings run successfully on test document (test: tests/test_document_preprocess.py)
+- [x] AC2: Document parser and embeddings run successfully on test document (test: tests/test_document_preprocess.py)
 
 ## Constraints & NFRs
 - Parsing memory footprint must remain bounded during large document indexing.

@@ -1,12 +1,12 @@
 # ASdlc Latest Risk Assessment Snapshot
-# Generated at: 2026-11-11T02:55:40.961Z
-# Change: update-dependencies-get-related-libs (seq: 4)
+# Generated at: 2026-11-12T12:20:16.466Z
+# Change: update-dependencies-get-related-libs (seq: 5)
 
 schema_version: 1
 change_id: update-dependencies-get-related-libs
-seq: 4
-prev_hash: 372b7eada8e49ff2c074363beb4f46c9f4695077f1911d0909fa3be9b0e1306b
-timestamp: 2026-11-11T02:55:40.961Z
+seq: 5
+prev_hash: c484ebd5cc3e8017957d720589a579c4ffcb7cfafb07acc25ced9f586862cea1
+timestamp: 2026-11-12T12:20:16.466Z
 actor:
   type: system
   id: asdlc
@@ -37,12 +37,19 @@ vectors:
     mandatory_human_review: false
     no_signal: false
   v2_security:
-    level: L1
+    level: L3
     confidence: high
-    evidence: []
+    evidence:
+      - id: V2_HARD_GOV_PLANE
+        kind: rule_hit
+        rule_id: HARD_GOV_PLANE
+        signal: hard
+        summary: Modifies core Agent governance constitution or agent instructions
+          (openspec/config.yaml)
+        source: openspec/config.yaml
     unresolved: []
-    mandatory_human_review: false
-    no_signal: true
+    mandatory_human_review: true
+    no_signal: false
   v3_topology:
     level: L1
     confidence: high
@@ -58,6 +65,7 @@ governance:
   mode: supervised
 reason_codes:
   - ESCALATED_IN_IMPL
+  - HARD_RULE_HIT
   - SECURITY_BOUNDARY_POSSIBLE
 observations: []
 transition:
@@ -66,4 +74,4 @@ transition:
   direction: same
   triggers:
     - Level remains escalated at L3 above baseline L1
-hash: c484ebd5cc3e8017957d720589a579c4ffcb7cfafb07acc25ced9f586862cea1
+hash: 0385f558ac24c2e6b3470303f9220a000263baafced4e83cce1b0a6c04ae3fe4

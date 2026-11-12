@@ -1,38 +1,121 @@
-import os
+import importlib.util
+import sys
+import types
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import Mock, patch
 from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
-def test_document_chunking_and_metadata():
-    """Verify document chunking with RecursiveCharacterTextSplitter preserves metadata."""
-    sample_text = (
-        "Enterprise RAG architectures require robust document preprocessing. "
-        "Chunking documents into semantic boundaries ensures higher vector similarity precision. "
-        "Metadata such as source file, page index, and chunk identifier are attached to each chunk. "
-    ) * 10
+def _ensure_optional_native_drivers_for_import():
+    """Provide lightweight stubs only when native optional drivers (neo4j/spacy) are absent in local venv."""
+    if importlib.util.find_spec("neo4j") is None and "neo4j" not in sys.modules:
+        neo4j_stub = types.ModuleType("neo4j")
+        neo4j_stub.GraphDatabase = MagicMock()
+        sys.modules["neo4j"] = neo4j_stub
 
-    doc = Document(page_content=sample_text, metadata={"source": "test_doc.pdf", "author": "Jamie"})
-    splitter = RecursiveCharacterTextSplitter(chunk_size=150, chunk_overlap=30)
-    chunks = splitter.split_documents([doc])
-
-    assert len(chunks) > 1, f"Expected multiple chunks, got {len(chunks)}"
-    for idx, chunk in enumerate(chunks):
-        assert isinstance(chunk, Document)
-        assert chunk.metadata["source"] == "test_doc.pdf"
-        assert len(chunk.page_content) <= 150 + 30
+    if importlib.util.find_spec("spacy") is None and "spacy" not in sys.modules:
+        spacy_stub = types.ModuleType("spacy")
+        spacy_stub.Language = MagicMock()
+        sys.modules["spacy"] = spacy_stub
 
 
-def test_embeddings_generation_runnable():
-    """Verify embeddings model produces numerical vector embeddings for document chunks."""
-    doc = Document(page_content="Modernized LangChain embeddings generation test.", metadata={"id": "chunk_1"})
-    
-    mock_embeddings = Mock()
-    mock_embeddings.embed_documents.return_value = [[0.123, -0.456, 0.789, 0.012]]
+_ensure_optional_native_drivers_for_import()
 
-    embeddings = mock_embeddings.embed_documents([doc.page_content])
-    assert len(embeddings) == 1
-    assert len(embeddings[0]) == 4
-    assert isinstance(embeddings[0][0], float)
+# Prevent circular logger initialization during test module import
+_mock_logger = MagicMock()
+_mock_logging_util = types.ModuleType("utils.logging_util")
+_mock_logging_util.logger = _mock_logger
+_mock_logging_util.configure_logger = MagicMock(return_value=_mock_logger)
+sys.modules.setdefault("utils.logging_util", _mock_logging_util)
 
+_mock_logger_init = types.ModuleType("utils.logger_init")
+_mock_logger_init.logger = _mock_logger
+sys.modules.setdefault("utils.logger_init", _mock_logger_init)
+
+from config.common_settings import CommonConfig  # noqa: E402
+from preprocess.loader.docx_loader import DocxDocLoader  # noqa: E402
+from preprocess.loader.loader_factories import DocumentLoaderFactory  # noqa: E402
+from preprocess.loader.pdf_loader import PDFDocLoader  # noqa: E402
+from preprocess.loader.text_loader import TextDocLoader  # noqa: E402
+
+
+SAMPLE_APP_CONFIG = {
+    "app": {
+        "embedding": {
+            "input_path": "/tmp/input",
+            "staging_path": "/tmp/staging",
+            "archive_path": "/tmp/archive",
+            "trunk_size": 120,
+            "overlap": 20,
+            "vector_store": {"enabled": False, "collection_name": "test_docs"},
+            "graph_store": {"enabled": False},
+        },
+        "models": {
+            "embedding": {
+                "type": "huggingface",
+                "model": "sentence-transformers/all-mpnet-base-v2",
+            },
+            "llm": {
+                "type": "gemini",
+                "model": "gemini-2.0-flash",
+            },
+        },
+    }
+}
+
+
+def test_production_loaders_and_factories_import_and_route():
+    """Verify real production loaders (PDFDocLoader, DocxDocLoader, TextDocLoader) and factory routing."""
+    with patch.object(CommonConfig, "load_yaml_file", return_value=SAMPLE_APP_CONFIG), \
+         patch.object(CommonConfig, "_create_directory"), \
+         patch("config.common_settings.os.path.exists", return_value=True), \
+         patch("config.common_settings.dotenv.load_dotenv"):
+        pdf_loader = DocumentLoaderFactory.get_loader("pdf")
+        docx_loader = DocumentLoaderFactory.get_loader("docx")
+        text_loader = DocumentLoaderFactory.get_loader("text")
+
+        assert isinstance(pdf_loader, PDFDocLoader)
+        assert isinstance(docx_loader, DocxDocLoader)
+        assert isinstance(text_loader, TextDocLoader)
+
+        assert pdf_loader.is_supported_file_extension("sample.pdf") is True
+        assert pdf_loader.is_supported_file_extension("sample.txt") is False
+        assert docx_loader.is_supported_file_extension("sample.docx") is True
+        assert docx_loader.is_supported_file_extension("sample.pdf") is False
+
+
+def test_text_doc_loader_parses_and_splits_real_file(tmp_path):
+    """Exercise real TextDocLoader.load() and LangChain RecursiveCharacterTextSplitter on a real file."""
+    sample_file = tmp_path / "sample_k8s.txt"
+    sample_file.write_text(
+        ("Enterprise RAG preprocessing splits documents into semantic chunks. " * 30).strip(),
+        encoding="utf-8",
+    )
+
+    with patch.object(CommonConfig, "load_yaml_file", return_value=SAMPLE_APP_CONFIG), \
+         patch.object(CommonConfig, "_create_directory"), \
+         patch("config.common_settings.os.path.exists", return_value=True), \
+         patch("config.common_settings.dotenv.load_dotenv"):
+        loader = TextDocLoader()
+        chunks = loader.load(str(sample_file))
+
+        assert len(chunks) > 1
+        assert all(isinstance(c, Document) for c in chunks)
+        assert all(c.metadata.get("source") == str(sample_file) for c in chunks)
+
+
+def test_common_config_embedding_model_factory():
+    """Exercise CommonConfig._get_embedding_model() with mocked HuggingFace network/model boundary."""
+    with patch.object(CommonConfig, "load_yaml_file", return_value=SAMPLE_APP_CONFIG), \
+         patch("config.common_settings.os.path.exists", return_value=True), \
+         patch("config.common_settings.dotenv.load_dotenv"), \
+         patch("langchain_huggingface.HuggingFaceEmbeddings") as mock_hf_cls:
+        mock_instance = MagicMock()
+        mock_hf_cls.return_value = mock_instance
+
+        cfg = CommonConfig()
+        embedder = cfg._get_embedding_model()
+
+        assert embedder is mock_instance
+        mock_hf_cls.assert_called_once_with(model_name="sentence-transformers/all-mpnet-base-v2")

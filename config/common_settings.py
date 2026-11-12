@@ -9,8 +9,8 @@ import yaml
 from langchain_community.llms.sparkllm import SparkLLM
 from langchain_core.vectorstores import VectorStore
 from neo4j import GraphDatabase
+from pathlib import Path
 from spacy import Language
-from spacy.vectors import Path
 
 from config.database.database_manager import DatabaseManager
 from utils.logger_init import logger
