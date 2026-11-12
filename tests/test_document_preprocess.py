@@ -3,7 +3,6 @@ import sys
 import types
 from unittest.mock import MagicMock, patch
 
-import pytest
 from langchain_core.documents import Document
 
 
@@ -119,3 +118,26 @@ def test_common_config_embedding_model_factory():
 
         assert embedder is mock_instance
         mock_hf_cls.assert_called_once_with(model_name="sentence-transformers/all-mpnet-base-v2")
+
+
+def test_pdf_doc_loader_parses_and_splits_real_pdf(tmp_path):
+    """Exercise real PDFDocLoader.load() with PyMuPDFLoader on a generated PDF fixture."""
+    import fitz
+
+    pdf_path = tmp_path / "sample_rag.pdf"
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "Enterprise RAG PDF preprocessing test.\n" * 40)
+    doc.save(str(pdf_path))
+    doc.close()
+
+    with patch.object(CommonConfig, "load_yaml_file", return_value=SAMPLE_APP_CONFIG), \
+         patch.object(CommonConfig, "_create_directory"), \
+         patch("config.common_settings.os.path.exists", return_value=True), \
+         patch("config.common_settings.dotenv.load_dotenv"):
+        loader = PDFDocLoader()
+        chunks = loader.load(str(pdf_path))
+
+        assert len(chunks) >= 1
+        assert all(isinstance(c, Document) for c in chunks)
+        assert any("Enterprise RAG PDF preprocessing test." in c.page_content for c in chunks)

@@ -31,8 +31,7 @@ def test_requirements_langchain_modern_versions():
         "langchain-google-genai": "==4.4.3",
         "langchain-ollama": "==1.1.0",
         "langchain-anthropic": "==1.7.6",
-        "langchain-postgres": "==0.0.12",
-        "langchain-redis": "==0.1.1",
+        "langchain-redis": "==0.2.6",
     }
     for pkg, expected_ver in expected_exact.items():
         assert deps.get(pkg) == expected_ver, f"Expected {pkg}{expected_ver}, got {deps.get(pkg)}"
