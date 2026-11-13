@@ -1,10 +1,10 @@
-import logging
 import os
 from abc import ABC, abstractmethod
 from typing import List
 
 from langchain_core.document_loaders import BaseLoader
 from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_text_splitters.base import TextSplitter
 
 from config.common_settings import CommonConfig
@@ -53,12 +53,24 @@ class DocumentLoader(ABC):
         """
         pass
 
-    @abstractmethod
     def get_splitter(self) -> TextSplitter:
         """
         Split the loaded document into chunks.
         """
-        pass
+        return RecursiveCharacterTextSplitter(
+            chunk_size=self.get_trunk_size(),
+            chunk_overlap=self.get_overlap()
+        )
+    
+    
+    def get_splitter_for_child(self) -> TextSplitter:
+        """
+        Split the loaded document into chunks for child documents.
+        """
+        return RecursiveCharacterTextSplitter(
+            chunk_size=512,
+            chunk_overlap=100
+        )
 
     @abstractmethod
     def is_supported_file_extension(self, file_path: str) -> bool:

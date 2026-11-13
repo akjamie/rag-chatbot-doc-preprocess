@@ -10,7 +10,6 @@ from langchain_community.document_loaders import ConfluenceLoader as LangChainCo
 from langchain_community.document_loaders.confluence import ContentFormat
 from langchain_core.document_loaders import BaseLoader
 from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from markdownify import markdownify as md
 
 from preprocess.loader.base_loader import DocumentLoader
@@ -34,15 +33,16 @@ class ConfluenceLoader(DocumentLoader):
             # Get both VIEW and STORAGE formats
             view_docs = self._load_with_format(loader, page_id, ContentFormat.VIEW)
             storage_docs = self._load_with_format(loader, page_id, ContentFormat.STORAGE)
-            
+
             # Combine and enhance content
             enhanced_docs = self._enhance_content(view_docs, storage_docs)  # Assuming single document
-            self.logger.info(f"Enhanced document size: {len(enhanced_docs)}")
-            
+            self.logger.info(
+                f'Enhanced content: {len(enhanced_docs)}, view doc count:{len(view_docs)}, storage doc count:{len(storage_docs)}')
+
             # Split document based on markdown content
             splitter = self.get_splitter()
             split_docs = splitter.split_documents(enhanced_docs)
-            
+
             # Post-process split documents
             return self._post_process_documents(split_docs, url)
 
@@ -68,7 +68,7 @@ class ConfluenceLoader(DocumentLoader):
                 # Check if content is already markdown
                 if self._is_markdown_content(view_doc.page_content):
                     # Convert markdown to plain text for embedding
-                    plain_text = self._extract_plain_text(view_doc.page_content)
+                    # plain_text = self._extract_plain_text(view_doc.page_content)
                     enhanced_doc = Document(
                         page_content=view_doc.page_content,  # Plain text for embedding
                         metadata={
@@ -134,7 +134,7 @@ class ConfluenceLoader(DocumentLoader):
             # Remove code blocks and their content
             text = re.sub(r'```[\s\S]*?```', '', markdown_content)
             text = re.sub(r'`[^`]+`', '', text)
-            
+
             # Process tables - extract meaningful content
             def process_table_content(table_match):
                 lines = table_match.group(0).split('\n')
@@ -148,22 +148,22 @@ class ConfluenceLoader(DocumentLoader):
                     if cells:
                         content.append(' '.join(cells))
                 return ' '.join(content)
-            
+
             # Replace tables with their processed content
             text = re.sub(r'\|[^\n]+\|[\s\S]*?(?=\n\s*\n|\Z)', process_table_content, text)
-            
+
             # Remove remaining table markers
             text = re.sub(r'\[TABLE\][\s\S]*?\[/TABLE\]', '', text)
-            
+
             # Remove diagrams and charts but keep any text descriptions
             text = re.sub(r'\[DIAGRAM:.*?\][\s\S]*?\[/DIAGRAM\]', '', text)
             text = re.sub(r'```(?:mermaid|plantuml)[\s\S]*?```', '', text)
-            
+
             # Process images and links - keep alt text and link text
             text = re.sub(r'!\[([^\]]*)\]\([^)]+\)', r'\1', text)  # Images
             text = re.sub(r'\[IMAGE:\s*([^\]]*)\]\([^)]+\)', r'\1', text)
             text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)  # Links
-            
+
             # Remove formatting while keeping content
             text = re.sub(r'^#{1,6}\s+(.*)$', r'\1', text, flags=re.MULTILINE)  # Headers
             text = re.sub(r'^\s*[-*+]\s+', '', text, flags=re.MULTILINE)  # Unordered lists
@@ -172,16 +172,16 @@ class ConfluenceLoader(DocumentLoader):
             text = re.sub(r'<!--[\s\S]*?-->', '', text)  # Comments
             text = re.sub(r'^\s*>\s+', '', text, flags=re.MULTILINE)  # Blockquotes
             text = re.sub(r'^[-*_]{3,}\s*$', '', text, flags=re.MULTILINE)  # Horizontal rules
-            
+
             # Clean up whitespace
             text = re.sub(r'\n{3,}', '\n\n', text)
             text = re.sub(r'\s+', ' ', text)
-            
+
             self.logger.debug(f"Plain text extraction - Original length: {len(markdown_content)}, "
-                             f"Extracted length: {len(text)}")
-            
+                              f"Extracted length: {len(text)}")
+
             return text.strip()
-            
+
         except Exception as e:
             self.logger.error(f"Error extracting plain text from markdown: {str(e)}")
             return ' '.join(markdown_content.split())
@@ -253,9 +253,9 @@ class ConfluenceLoader(DocumentLoader):
         processed_docs = []
         for i, doc in enumerate(documents):
             markdown = doc.page_content
-            plain_text = self._extract_plain_text(markdown)
+            content = self._extract_plain_text(markdown)
 
-            new_doc = Document(page_content=plain_text, metadata={
+            new_doc = Document(page_content=content, metadata={
                 **doc.metadata,
                 "content_type": "markdown",
                 "markdown_content": markdown,
@@ -279,22 +279,18 @@ class ConfluenceLoader(DocumentLoader):
             return LangChainConfluenceLoader(
                 url=confluence_url,
                 token=token,
-                keep_newlines=True
+                keep_newlines=True,
+                confluence_kwargs={"verify_ssl": False}
             )
-
 
         return LangChainConfluenceLoader(
             url=confluence_url,
             username=username,
             api_key=api_key,
-            keep_newlines=True
+            keep_newlines=True,
+            confluence_kwargs={"verify_ssl": False}
         )
 
-    def get_splitter(self) -> RecursiveCharacterTextSplitter:
-        return RecursiveCharacterTextSplitter(
-            chunk_size=self.get_trunk_size(),
-            chunk_overlap=self.get_overlap()
-        )
 
     def is_supported_file_extension(self, file_path: str) -> bool:
         # Confluence pages don't have file extensions to check
@@ -377,6 +373,6 @@ class ConfluenceLoader(DocumentLoader):
             return None
 
         except Exception as e:
-            self.logger.error(f"Failed to extract page ID from URL: {url}, Error: {str(e)}, stack: {traceback.format_exc()}")
+            self.logger.error(
+                f"Failed to extract page ID from URL: {url}, Error: {str(e)}, stack: {traceback.format_exc()}")
             raise ValueError(f"Invalid Confluence URL format: {url}")
-

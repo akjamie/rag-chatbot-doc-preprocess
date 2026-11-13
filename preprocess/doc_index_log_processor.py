@@ -2,7 +2,6 @@ import hashlib
 from datetime import datetime, UTC
 from typing import Optional, List
 
-from langchain_postgres import PGVector
 from pydantic import BaseModel
 
 from config.common_settings import CommonConfig
@@ -34,7 +33,7 @@ class DocEmbeddingsProcessor:
         self.vector_store = vector_store
         self.index_log_helper = index_log_helper
         self.config = config
-        self.vector_store_helper = VectorStoreHelper(vector_store)
+        self.vector_store_helper = VectorStoreHelper(vector_store, embedding_model)
         self.graph_store_enabled = self.config.get_embedding_config("graph_store.enabled", False)
         if self.graph_store_enabled:
             self.graph_store_helper = GraphStoreHelper(self.config.get_graph_store(), self.config)
@@ -151,6 +150,8 @@ class DocEmbeddingsProcessor:
             raise ValueError(f"Document with id {log_id} not found")
 
         # Verify vector store type
+
+        from langchain_postgres import PGVector
         if not isinstance(self.vector_store, PGVector):
             raise ValueError("Operation only supported for PGVector store")
 

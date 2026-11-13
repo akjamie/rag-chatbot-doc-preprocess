@@ -74,7 +74,7 @@ def configure_logger(log_file="app.log", max_bytes=10 * 1024 * 1024, backup_coun
         "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
         "{level.icon} {level.name:<8} | "
         "<blue>{thread.name}</blue> | "
-        # "<blue>{process.id}</blue> | "
+        "<blue>{process.id}</blue> | "
         "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
         "{extra} | "
         "{message}"
@@ -83,7 +83,15 @@ def configure_logger(log_file="app.log", max_bytes=10 * 1024 * 1024, backup_coun
     # Get logging configuration
     logging_levels = config.config.get("app", {}).get("logging.level", {})
     root_level = logging_levels.get("root", "INFO")
-
+    # Define level mapping
+    level_mapping = {
+        "DEBUG": 10,
+        "INFO": 20,
+        "WARNING": 30,
+        "ERROR": 40,
+        "CRITICAL": 50
+    }
+    
     def log_filter(record):
         """Filter log records based on module name with hierarchical path support"""
         module_name = record["name"]
@@ -99,7 +107,11 @@ def configure_logger(log_file="app.log", max_bytes=10 * 1024 * 1024, backup_coun
                     matching_level = level
                     matching_length = path_length
         
-        return record["level"].name >= matching_level
+        # Convert level names to numeric values for comparison
+        record_level = level_mapping.get(record["level"].name, 0)
+        filter_level = level_mapping.get(matching_level, 0)
+        
+        return record_level >= filter_level
 
     # Add file handler
     logger.add(
@@ -111,7 +123,9 @@ def configure_logger(log_file="app.log", max_bytes=10 * 1024 * 1024, backup_coun
         rotation=max_bytes,
         retention=backup_count,
         catch=True,
-        level="DEBUG"  # Base level - actual filtering done by log_filter
+        level="DEBUG",  # Base level - actual filtering done by log_filter
+        backtrace=True,  # Enable backtrace for errors
+        diagnose=True    # Enable diagnose for errors
     )
 
     # Console handler
@@ -122,7 +136,9 @@ def configure_logger(log_file="app.log", max_bytes=10 * 1024 * 1024, backup_coun
         colorize=True,
         enqueue=True,
         catch=True,
-        level="DEBUG"  # Base level - actual filtering done by log_filter
+        level="DEBUG",  # Base level - actual filtering done by log_filter
+        backtrace=True,  # Enable backtrace for errors
+        diagnose=True    # Enable diagnose for errors
     )
 
     return logger
@@ -130,7 +146,18 @@ def configure_logger(log_file="app.log", max_bytes=10 * 1024 * 1024, backup_coun
 
 # Initialize the logger
 logger = configure_logger(os.path.join(BASE_DIR, "../app.log"))
-logger.level("INFO")
+# logger.level("INFO")
 
 if __name__ == "__main__":
-    logger.info("This is an info message.")
+    # Test different log levels
+    logger.debug("This is a debug message")
+    logger.info("This is an info message")
+    logger.warning("This is a warning message")
+    logger.error("This is an error message")
+
+    # Test error logging with exception
+    try:
+        1 / 0
+    except Exception as e:
+        logger.exception("This is an exception message")
+

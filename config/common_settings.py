@@ -9,8 +9,8 @@ import yaml
 from langchain_community.llms.sparkllm import SparkLLM
 from langchain_core.vectorstores import VectorStore
 from neo4j import GraphDatabase
+from pathlib import Path
 from spacy import Language
-from spacy.vectors import Path
 
 from config.database.database_manager import DatabaseManager
 from utils.logger_init import logger
@@ -27,7 +27,7 @@ class CommonConfig:
         dotenv_path = os.path.join(BASE_DIR, '..', '.env')
         if os.path.exists(dotenv_path):
             dotenv.load_dotenv(dotenv_path)
-        elif os.path.exists(os.getenv('DOTENV_PATH')):
+        elif os.getenv('DOTENV_PATH') and os.path.exists(os.getenv('DOTENV_PATH')):
             dotenv.load_dotenv(dotenv_path=os.getenv('DOTENV_PATH'))
         else:
             self.logger.warning(f".env file not found at{dotenv_path}")
@@ -55,7 +55,7 @@ class CommonConfig:
             current = current[key]
 
     def _get_llm_model(self):
-        self.check_config(config, ["app", "models", "llm", "type"],
+        self.check_config(self.config, ["app", "models", "llm", "type"],
                           "LLM model is not found")
         self.logger.debug(f"LLM model: {self.config['app']['models']['llm']}")
 
@@ -143,6 +143,11 @@ class CommonConfig:
         staging_path = os.getenv("DOC_STAGING_PATH", self.config["app"]["embedding"].get("staging_path"))
         archive_path = os.getenv("DOC_ARCHIVE_PATH", self.config["app"]["embedding"].get("archive_path"))
 
+        # create path if they don't exist
+        self._create_directory(input_path)
+        self._create_directory(staging_path)
+        self._create_directory(archive_path)
+
         embedding_config = {
             "input_path": input_path,
             "staging_path": staging_path,
@@ -176,6 +181,15 @@ class CommonConfig:
             return value
         except (KeyError, TypeError):
             return default_value
+
+    def _create_directory(self, path):
+        """Create directory if it doesn't exist"""
+        if path.startswith("./") or path.startswith(".\\"):
+            return
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+            self.logger.info(f"Created directory: {path}")
 
     @lru_cache(maxsize=1)
     def get_vector_store(self) -> VectorStore:
