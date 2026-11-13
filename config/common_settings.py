@@ -27,7 +27,7 @@ class CommonConfig:
         dotenv_path = os.path.join(BASE_DIR, '..', '.env')
         if os.path.exists(dotenv_path):
             dotenv.load_dotenv(dotenv_path)
-        elif os.path.exists(os.getenv('DOTENV_PATH')):
+        elif os.getenv('DOTENV_PATH') and os.path.exists(os.getenv('DOTENV_PATH')):
             dotenv.load_dotenv(dotenv_path=os.getenv('DOTENV_PATH'))
         else:
             self.logger.warning(f".env file not found at{dotenv_path}")
