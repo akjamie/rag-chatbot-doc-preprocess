@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main, jamie, "feat/**"]
+  pull_request:
+    branches: [main, jamie]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies from requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Verify dependency integrity
+        run: pip check
+      - name: Run dependency, preprocessing, and smoke tests
+        env:
+          PYTHONPATH: "."
+        run: python -m pytest --noconftest tests/test_dependencies.py tests/test_document_preprocess.py tests/test_smoke.py

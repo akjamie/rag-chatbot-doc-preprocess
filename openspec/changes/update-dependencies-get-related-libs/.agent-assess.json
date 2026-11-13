@@ -1,0 +1,5 @@
+{
+  "classification": "change",
+  "rationale": "Modernize LangChain 1.4.9, partner libraries, pyproject.toml pytest configuration, and ingestion pipeline tests."
+}
+

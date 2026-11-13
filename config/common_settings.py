@@ -9,8 +9,8 @@ import yaml
 from langchain_community.llms.sparkllm import SparkLLM
 from langchain_core.vectorstores import VectorStore
 from neo4j import GraphDatabase
+from pathlib import Path
 from spacy import Language
-from spacy.vectors import Path
 
 from config.database.database_manager import DatabaseManager
 from utils.logger_init import logger
@@ -27,7 +27,7 @@ class CommonConfig:
         dotenv_path = os.path.join(BASE_DIR, '..', '.env')
         if os.path.exists(dotenv_path):
             dotenv.load_dotenv(dotenv_path)
-        elif os.path.exists(os.getenv('DOTENV_PATH')):
+        elif os.getenv('DOTENV_PATH') and os.path.exists(os.getenv('DOTENV_PATH')):
             dotenv.load_dotenv(dotenv_path=os.getenv('DOTENV_PATH'))
         else:
             self.logger.warning(f".env file not found at{dotenv_path}")
@@ -55,7 +55,7 @@ class CommonConfig:
             current = current[key]
 
     def _get_llm_model(self):
-        self.check_config(config, ["app", "models", "llm", "type"],
+        self.check_config(self.config, ["app", "models", "llm", "type"],
                           "LLM model is not found")
         self.logger.debug(f"LLM model: {self.config['app']['models']['llm']}")
 
