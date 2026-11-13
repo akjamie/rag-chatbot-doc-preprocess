@@ -16,7 +16,7 @@ compared_to: null
 status: ready
 verdict: escalated
 defaulted_cause: null
-change_type: chore
+change_type: change
 source:
   base_sha: jamie
   head_sha: HEAD

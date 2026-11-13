@@ -55,7 +55,7 @@ class CommonConfig:
             current = current[key]
 
     def _get_llm_model(self):
-        self.check_config(config, ["app", "models", "llm", "type"],
+        self.check_config(self.config, ["app", "models", "llm", "type"],
                           "LLM model is not found")
         self.logger.debug(f"LLM model: {self.config['app']['models']['llm']}")
 

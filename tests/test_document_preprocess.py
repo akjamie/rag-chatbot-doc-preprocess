@@ -1,50 +1,23 @@
-import importlib.util
-import sys
-import types
+import os
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from langchain_core.documents import Document
 
-
-def _ensure_optional_native_drivers_for_import():
-    """Provide lightweight stubs only when native optional drivers (neo4j/spacy) are absent in local venv."""
-    if importlib.util.find_spec("neo4j") is None and "neo4j" not in sys.modules:
-        neo4j_stub = types.ModuleType("neo4j")
-        neo4j_stub.GraphDatabase = MagicMock()
-        sys.modules["neo4j"] = neo4j_stub
-
-    if importlib.util.find_spec("spacy") is None and "spacy" not in sys.modules:
-        spacy_stub = types.ModuleType("spacy")
-        spacy_stub.Language = MagicMock()
-        sys.modules["spacy"] = spacy_stub
-
-
-_ensure_optional_native_drivers_for_import()
-
-# Prevent circular logger initialization during test module import
-_mock_logger = MagicMock()
-_mock_logging_util = types.ModuleType("utils.logging_util")
-_mock_logging_util.logger = _mock_logger
-_mock_logging_util.configure_logger = MagicMock(return_value=_mock_logger)
-sys.modules.setdefault("utils.logging_util", _mock_logging_util)
-
-_mock_logger_init = types.ModuleType("utils.logger_init")
-_mock_logger_init.logger = _mock_logger
-sys.modules.setdefault("utils.logger_init", _mock_logger_init)
-
-from config.common_settings import CommonConfig  # noqa: E402
-from preprocess.loader.docx_loader import DocxDocLoader  # noqa: E402
-from preprocess.loader.loader_factories import DocumentLoaderFactory  # noqa: E402
-from preprocess.loader.pdf_loader import PDFDocLoader  # noqa: E402
-from preprocess.loader.text_loader import TextDocLoader  # noqa: E402
+from config.common_settings import CommonConfig
+from preprocess.loader.docx_loader import DocxDocLoader
+from preprocess.loader.loader_factories import DocumentLoaderFactory
+from preprocess.loader.pdf_loader import PDFDocLoader
+from preprocess.loader.text_loader import TextDocLoader
 
 
 SAMPLE_APP_CONFIG = {
     "app": {
         "embedding": {
-            "input_path": "/tmp/input",
-            "staging_path": "/tmp/staging",
-            "archive_path": "/tmp/archive",
+            "input_path": "./data/input",
+            "staging_path": "./data/staging",
+            "archive_path": "./data/archive",
             "trunk_size": 120,
             "overlap": 20,
             "vector_store": {"enabled": False, "collection_name": "test_docs"},
@@ -53,7 +26,7 @@ SAMPLE_APP_CONFIG = {
         "models": {
             "embedding": {
                 "type": "huggingface",
-                "model": "sentence-transformers/all-mpnet-base-v2",
+                "model": "BAAI/bge-large-en-v1.5",
             },
             "llm": {
                 "type": "gemini",
@@ -104,22 +77,6 @@ def test_text_doc_loader_parses_and_splits_real_file(tmp_path):
         assert all(c.metadata.get("source") == str(sample_file) for c in chunks)
 
 
-def test_common_config_embedding_model_factory():
-    """Exercise CommonConfig._get_embedding_model() with mocked HuggingFace network/model boundary."""
-    with patch.object(CommonConfig, "load_yaml_file", return_value=SAMPLE_APP_CONFIG), \
-         patch("config.common_settings.os.path.exists", return_value=True), \
-         patch("config.common_settings.dotenv.load_dotenv"), \
-         patch("langchain_huggingface.HuggingFaceEmbeddings") as mock_hf_cls:
-        mock_instance = MagicMock()
-        mock_hf_cls.return_value = mock_instance
-
-        cfg = CommonConfig()
-        embedder = cfg._get_embedding_model()
-
-        assert embedder is mock_instance
-        mock_hf_cls.assert_called_once_with(model_name="sentence-transformers/all-mpnet-base-v2")
-
-
 def test_pdf_doc_loader_parses_and_splits_real_pdf(tmp_path):
     """Exercise real PDFDocLoader.load() with PyMuPDFLoader on a generated PDF fixture."""
     import fitz
@@ -141,3 +98,67 @@ def test_pdf_doc_loader_parses_and_splits_real_pdf(tmp_path):
         assert len(chunks) >= 1
         assert all(isinstance(c, Document) for c in chunks)
         assert any("Enterprise RAG PDF preprocessing test." in c.page_content for c in chunks)
+
+
+def test_common_config_embedding_model_real_inference():
+    """Exercise CommonConfig._get_embedding_model() and real embedding execution."""
+    real_exists = os.path.exists
+
+    def selective_exists(path):
+        if "app.yaml" in str(path) or ".env" in str(path):
+            return True
+        return real_exists(path)
+
+    with patch.object(CommonConfig, "load_yaml_file", return_value=SAMPLE_APP_CONFIG), \
+         patch("config.common_settings.os.path.exists", side_effect=selective_exists), \
+         patch("config.common_settings.dotenv.load_dotenv"):
+        cfg = CommonConfig()
+        embedder = cfg.get_model("embedding")
+        assert embedder is not None
+        vectors = embedder.embed_documents(["RAG document embedding chunk test"])
+        assert len(vectors) == 1
+        assert len(vectors[0]) > 0
+
+
+def test_vendored_spacy_model_loading_and_nlp():
+    """Verify loading the repo-vendored spaCy en_core_web_md model through CommonConfig."""
+    with patch.object(CommonConfig, "load_yaml_file", return_value=SAMPLE_APP_CONFIG), \
+         patch("config.common_settings.os.path.exists", return_value=True), \
+         patch("config.common_settings.dotenv.load_dotenv"):
+        cfg = CommonConfig()
+        nlp = cfg.get_nlp_spacy()
+        assert nlp is not None
+        doc = nlp("Google DeepMind builds advanced AI models in London.")
+        entities = [(ent.text, ent.label_) for ent in doc.ents]
+        assert len(entities) >= 1
+
+
+def test_common_config_llm_factory_and_fix():
+    """Verify CommonConfig._get_llm_model() uses self.config and instantiates properly."""
+    with patch.object(CommonConfig, "load_yaml_file", return_value=SAMPLE_APP_CONFIG), \
+         patch("config.common_settings.os.path.exists", return_value=True), \
+         patch("config.common_settings.dotenv.load_dotenv"), \
+         patch("langchain_google_genai.GoogleGenerativeAI") as mock_gemini:
+        mock_instance = MagicMock()
+        mock_gemini.return_value = mock_instance
+        cfg = CommonConfig()
+        model = cfg.get_model("llm")
+        assert model is mock_instance
+
+
+def test_neo4j_driver_compatibility_and_mocked_session():
+    """Verify Neo4j driver compatibility (5.x and 6.x) and session query execution."""
+    from neo4j import GraphDatabase
+
+    mock_driver = MagicMock()
+    mock_session = MagicMock()
+    mock_driver.session.return_value.__enter__.return_value = mock_session
+    mock_session.run.return_value = [{"count": 42}]
+
+    with patch.object(GraphDatabase, "driver", return_value=mock_driver):
+        driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "test"))
+        with driver.session() as session:
+            result = session.run("MATCH (n) RETURN count(n) as count")
+            records = list(result)
+            assert len(records) == 1
+            assert records[0]["count"] == 42

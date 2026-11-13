@@ -1,5 +1,4 @@
 from langchain_core.vectorstores import VectorStore
-from langchain_postgres import PGVector
 from langchain_qdrant import QdrantVectorStore
 from langchain_redis import RedisVectorStore
 from qdrant_client.http.models import Filter, FieldCondition, MatchValue
@@ -32,7 +31,8 @@ class VectorStoreHelper:
                 if docs:
                     self.vector_store.delete([doc.metadata["id"] for doc in docs])
 
-            elif isinstance(self.vector_store, PGVector):
+            elif self.vector_store.__class__.__name__ == "PGVector":
+                from langchain_postgres import PGVector
                 # Create a filter condition for metadata
                 filter = {
                     "metadata": {
