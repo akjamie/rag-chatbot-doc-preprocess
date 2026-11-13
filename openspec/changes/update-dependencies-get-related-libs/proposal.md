@@ -7,7 +7,7 @@ The document preprocessing service transforms, chunks, and indexes documents int
 - Upgrade `requirements.txt` (exact pins `==` for LangChain ecosystem, minimum bounds `>=` for native/runtime drivers):
   - `langchain==1.4.9`, `langchain-core==1.7.6`, `langchain-community==0.4.2`, `langgraph==1.2.20`
   - `langchain-huggingface==1.2.3`, `langchain-qdrant==1.1.0`, `langchain-google-genai==4.4.3`
-  - `langchain-ollama==1.1.0`, `langchain-anthropic==1.7.6`, `langchain-postgres==0.0.12`, `langchain-redis==0.1.1` (uncommented to match active imports in `config/common_settings.py` and `preprocess/doc_index_log_processor.py`)
+  - `langchain-ollama==1.1.0`, `langchain-anthropic==1.7.6`, `langchain-redis==0.2.6` (uncommented to match active imports in `config/common_settings.py` and `preprocess/doc_index_log_processor.py`; `langchain-postgres` commented pending upstream `langchain-core>=1.0` support)
   - `pymupdf>=1.25.0`, `neo4j>=5.26.0`, `spacy>=3.8.4`, `fastapi==0.115.6`, `uvicorn==0.32.1`
 - Fix `config/common_settings.py` to import `Path` from `pathlib` rather than `spacy.vectors`.
 - Add integration tests (`tests/test_dependencies.py`, `tests/test_document_preprocess.py`) verifying pinned/minimum dependency constraints and real production `CommonConfig`, `DocumentLoaderFactory`, `PDFDocLoader`, `DocxDocLoader`, and `TextDocLoader` compatibility.
