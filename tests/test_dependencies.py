@@ -29,7 +29,7 @@ def test_requirements_file_specifications():
         "langchain-ollama": "==1.1.0",
         "langchain-anthropic": "==1.7.6",
         "langchain-redis": "==0.2.6",
-        "langchain-text-splitters": "==0.3.6",
+        "langchain-text-splitters": "==1.1.3",
     }
     for pkg, expected_ver in expected_exact.items():
         assert deps.get(pkg) == expected_ver, f"Expected {pkg}{expected_ver}, got {deps.get(pkg)}"

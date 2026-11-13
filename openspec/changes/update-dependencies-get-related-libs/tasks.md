@@ -3,7 +3,7 @@
 ## 1. Dependency Modernization
 - [x] 1.1 [TEST] Add test verifying LangChain 1.4.9, LangGraph 1.2.20, partner packages, capped driver bounds, and installed package metadata (`tests/test_dependencies.py`)
   - verify: `pytest --noconftest tests/test_dependencies.py` -> PASS (2 passed)
-- [x] 1.2 [IMPL] Update `requirements.txt` with LangChain 1.4.9, langchain-core 1.7.6, langgraph 1.2.20, `langchain-redis==0.2.6`, `requests>=2.32.5`, capped drivers (`pymupdf>=1.25.0,<3`, `neo4j>=5.26.0,<7`, `spacy>=3.8.4,<4`), and direct dependencies (`langchain-text-splitters`, `pydantic`, `qdrant-client`)
+- [x] 1.2 [IMPL] Update `requirements.txt` with LangChain 1.4.9, langchain-core 1.7.6, langgraph 1.2.20, `langchain-redis==0.2.6`, `requests>=2.32.5`, capped drivers (`pymupdf>=1.25.0,<3`, `neo4j>=5.26.0,<7`, `spacy>=3.8.4,<4`), and direct dependencies (`langchain-text-splitters==1.1.3`, `pydantic`, `qdrant-client`)
   - evidence: `python -m pytest --noconftest tests/test_dependencies.py` -> PASS (2 passed in 0.09s)
 
 ## 2. Ingestion & Preprocessing Pipeline Verification

@@ -8,7 +8,7 @@ The document preprocessing service transforms, chunks, and indexes documents int
   - `langchain==1.4.9`, `langchain-core==1.7.6`, `langchain-community==0.4.2`, `langgraph==1.2.20`
   - `langchain-huggingface==1.2.3`, `langchain-qdrant==1.1.0`, `langchain-google-genai==4.4.3`
   - `langchain-ollama==1.1.0`, `langchain-anthropic==1.7.6`, `langchain-redis==0.2.6`
-  - Explicitly declare direct imports: `langchain-text-splitters==0.3.6`, `pydantic>=2.9.2`, `qdrant-client>=1.12.0`
+  - Explicitly declare direct imports: `langchain-text-splitters==1.1.3`, `pydantic>=2.9.2`, `qdrant-client>=1.12.0`
   - Capped upper bounds on drivers: `pymupdf>=1.25.0,<3`, `neo4j>=5.26.0,<7`, `spacy>=3.8.4,<4`
   - `fastapi==0.115.6`, `uvicorn==0.32.1`, `requests>=2.32.5`, `python-dotenv==1.0.1`
   - Commented `langchain-postgres` pending upstream `langchain-core>=1.0` support.

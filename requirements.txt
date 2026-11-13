@@ -34,7 +34,7 @@ atlassian-python-api>=3.41.2
 rank_bm25>=0.2.2
 lxml>=4.9.0
 markdownify>=0.11.6
-langchain-text-splitters==0.3.6
+langchain-text-splitters==1.1.3
 pydantic>=2.9.2
 qdrant-client>=1.12.0
 pymupdf>=1.25.0,<3
