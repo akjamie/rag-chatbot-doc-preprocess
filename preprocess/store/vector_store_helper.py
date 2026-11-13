@@ -7,8 +7,9 @@ from utils.logging_util import logger
 
 
 class VectorStoreHelper:
-    def __init__(self, vector_store: VectorStore):
+    def __init__(self, vector_store: VectorStore, embeddings=None):
         self.vector_store = vector_store
+        self.embeddings = embeddings
         self.logger = logger
 
     def remove_existing_embeddings(self, source: str, source_type: str, checksum: str):
@@ -22,6 +23,14 @@ class VectorStoreHelper:
         try:
             self.logger.info(f"Removing embeddings for source:{source}, type:{source_type}, checksum:{checksum}")
             
+            # Check PGVector lazily
+            is_pgvector = False
+            try:
+                from langchain_postgres import PGVector
+                is_pgvector = isinstance(self.vector_store, PGVector)
+            except ImportError:
+                is_pgvector = self.vector_store.__class__.__name__ == "PGVector"
+
             if isinstance(self.vector_store, RedisVectorStore):
                 docs = self.vector_store.search_by_metadata({
                     "source": source,
@@ -31,8 +40,7 @@ class VectorStoreHelper:
                 if docs:
                     self.vector_store.delete([doc.metadata["id"] for doc in docs])
 
-            elif self.vector_store.__class__.__name__ == "PGVector":
-                from langchain_postgres import PGVector
+            elif is_pgvector:
                 # Create a filter condition for metadata
                 filter = {
                     "metadata": {
@@ -42,7 +50,10 @@ class VectorStoreHelper:
                     }
                 }
                 # Use a dummy vector since we only care about metadata
-                dummy_vector = [0.0] * self.embeddings.dimension
+                dimension = 1536
+                if self.embeddings and hasattr(self.embeddings, "dimension"):
+                    dimension = self.embeddings.dimension
+                dummy_vector = [0.0] * dimension
                 docs = self.vector_store.similarity_search_by_vector(
                     embedding=dummy_vector,
                     k=100,  # Adjust based on expected max documents

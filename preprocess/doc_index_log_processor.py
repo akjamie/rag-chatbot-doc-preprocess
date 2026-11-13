@@ -33,7 +33,7 @@ class DocEmbeddingsProcessor:
         self.vector_store = vector_store
         self.index_log_helper = index_log_helper
         self.config = config
-        self.vector_store_helper = VectorStoreHelper(vector_store)
+        self.vector_store_helper = VectorStoreHelper(vector_store, embedding_model)
         self.graph_store_enabled = self.config.get_embedding_config("graph_store.enabled", False)
         if self.graph_store_enabled:
             self.graph_store_helper = GraphStoreHelper(self.config.get_graph_store(), self.config)

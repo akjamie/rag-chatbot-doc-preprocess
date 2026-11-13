@@ -38,7 +38,7 @@ class DocEmbeddingJob:
 
         self.embeddings = self.config.get_model("embedding")
         self.vector_store = self.config.get_vector_store()
-        self.vector_store_helper = VectorStoreHelper(self.vector_store)
+        self.vector_store_helper = VectorStoreHelper(self.vector_store, self.embeddings)
 
         self.graph_store_enabled = self.config.get_embedding_config("graph_store.enabled", False)
 
